@@ -41,7 +41,7 @@ jobs:
             --output review.json \
             --summary review.md
         env:
-          METACULUS_TOKEN: ${{ secrets.METACULUS_TOKEN }}
+          METACULUS_TOKEN: ${{ secrets.METACALUSTOKEN }}
       - name: Show the summary in the run page
         run: cat review.md >> $GITHUB_STEP_SUMMARY
       - name: Keep the review
