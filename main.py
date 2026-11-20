@@ -709,23 +709,31 @@ if __name__ == "__main__":
     # uncomment and edit to pin specific models.
     template_bot = FallTemplateBot2026(
         research_reports_per_question=1,
-        predictions_per_research_report=5,
+        predictions_per_research_report=3,
         use_research_summary_to_forecast=False,
         publish_reports_to_metaculus=publish_to_metaculus,
         folder_to_save_reports_to=None,
         skip_previously_forecasted_questions=True,
         extra_metadata_in_explanation=True,
-        # llms={
-        #     "default": GeneralLlm(
-        #         model="openrouter/openai/gpt-4o",
-        #         temperature=0.3,
-        #         timeout=40,
-        #         allowed_tries=2,
-        #     ),
-        #     "summarizer": "openai/gpt-4o-mini",
-        #     "researcher": "asknews/news-summaries",
-        #     "parser": "openai/gpt-4o-mini",
-        # },
+        # Models are pinned because the forecasting-tools defaults point at a
+        # search model OpenRouter no longer serves. All calls go through
+        # OpenRouter, so one key (and one spend limit) covers everything.
+        llms={
+            "default": GeneralLlm(
+                model="openrouter/anthropic/claude-sonnet-5.5",
+                temperature=0.3,
+                timeout=120,
+                allowed_tries=2,
+            ),
+            "researcher": GeneralLlm(
+                model="openrouter/perplexity/sonar-reasoning-pro",
+                temperature=0.1,
+                timeout=180,
+                allowed_tries=2,
+            ),
+            "summarizer": "openrouter/anthropic/claude-haiku-5.5",
+            "parser": "openrouter/anthropic/claude-haiku-5.5",
+        },
     )
 
     # Per-mode tournament URL shown in the summary banner footer. These
