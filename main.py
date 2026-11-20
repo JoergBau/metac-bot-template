@@ -160,8 +160,52 @@ class FallTemplateBot2026(ForecastBot):
                 research = ""
             else:
                 research = await self.get_llm("researcher", "llm").invoke(prompt)
+
+            # Second pass: the outside view. A separate search for how often
+            # comparable events have happened, so the forecaster anchors on a
+            # base rate before weighing the news. A failure here must not
+            # lose the news research, so it is caught and logged.
+            if isinstance(researcher, GeneralLlm):
+                try:
+                    base_rates = await researcher.invoke(
+                        self._get_base_rate_prompt(question)
+                    )
+                    research = (
+                        f"{research}\n\n"
+                        f"--- Outside view: base rates and reference classes ---\n"
+                        f"{base_rates}"
+                    )
+                except Exception as error:
+                    logger.warning(
+                        f"Base-rate research failed for {question.page_url}: {error}"
+                    )
             logger.info(f"Found Research for URL {question.page_url}:\n{research}")
             return research
+
+    @staticmethod
+    def _get_base_rate_prompt(question: MetaculusQuestion) -> str:
+        return clean_indents(
+            f"""
+            You are an assistant to a superforecaster. Ignore the latest news for now.
+            Your only job is the outside view for the question below.
+
+            1. Name two or three reference classes of comparable past events.
+            2. For each, give the historical frequency or typical value, with the
+               time period and the source. Use real figures you can find. If you
+               cannot find a figure, say so plainly instead of guessing.
+            3. Say which reference class fits this question best and why.
+
+            Keep it under 250 words. Do not produce a forecast.
+
+            Question:
+            {question.question_text}
+
+            Resolution criteria:
+            {question.resolution_criteria}
+
+            {question.fine_print}
+            """
+        )
 
     @staticmethod
     def _get_research_prompt(
@@ -216,6 +260,7 @@ class FallTemplateBot2026(ForecastBot):
             Today is {datetime.now().strftime("%Y-%m-%d")}.
 
             Before answering you write:
+            (0) The outside view: the best-fitting base rate from the research, and the estimate that base rate alone would give, before you consider the specifics of this case. If the research found no usable base rate, say so.
             (a) The time left until the outcome to the question is known.
             (b) The status quo outcome if nothing changed.
             (c) A brief description of a scenario that results in a No outcome.
@@ -250,7 +295,9 @@ class FallTemplateBot2026(ForecastBot):
             num_validation_samples=self._structure_output_validation_samples,
             additional_instructions=parsing_instructions,
         )
-        decimal_pred = max(0.01, min(0.99, binary_prediction.prediction_in_decimal))
+        # Calibration guard: scoring punishes confident misses heavily, so the
+        # bot never goes beyond 2% or 98% on its own judgement.
+        decimal_pred = max(0.02, min(0.98, binary_prediction.prediction_in_decimal))
 
         logger.info(
             f"Forecasted URL {question.page_url} with prediction: {decimal_pred}."
@@ -286,6 +333,7 @@ class FallTemplateBot2026(ForecastBot):
             Today is {datetime.now().strftime("%Y-%m-%d")}.
 
             Before answering you write:
+            (0) The outside view: the best-fitting base rate from the research, and the estimate that base rate alone would give, before you consider the specifics of this case. If the research found no usable base rate, say so.
             (a) The time left until the outcome to the question is known.
             (b) The status quo outcome if nothing changed.
             (c) A description of a scenario that results in an unexpected outcome.
@@ -372,6 +420,7 @@ class FallTemplateBot2026(ForecastBot):
             - Always start with a smaller number (more negative if negative) and then increase from there. The value for percentile 10 should always be less than the value for percentile 20, and so on.
 
             Before answering you write:
+            (0) The outside view: the best-fitting base rate from the research, and the estimate that base rate alone would give, before you consider the specifics of this case. If the research found no usable base rate, say so.
             (a) The time left until the outcome to the question is known.
             (b) The outcome if nothing changed.
             (c) The outcome if the current trend continued.
@@ -467,6 +516,7 @@ class FallTemplateBot2026(ForecastBot):
             - Do NOT forget this. The dates must be written in chronological order starting at the earliest time at percentile 10 and increasing from there.
 
             Before answering you write:
+            (0) The outside view: the best-fitting base rate from the research, and the estimate that base rate alone would give, before you consider the specifics of this case. If the research found no usable base rate, say so.
             (a) The time left until the outcome to the question is known.
             (b) The outcome if nothing changed.
             (c) The outcome if the current trend continued.
