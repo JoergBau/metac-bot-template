@@ -416,6 +416,7 @@ class FallTemplateBot2026(ForecastBot):
 
             Formatting Instructions:
             - Please notice the units requested and give your answer in these units (e.g. whether you represent a number as 1,000,000 or 1 million).
+            - Every percentile value must lie inside the bounds stated above, or only slightly beyond an open bound. If you believe the outcome could fall far outside the range, place your extreme percentiles at the bound instead of beyond it. Check each value against the bounds and the units before you give your final answer.
             - Never use scientific notation.
             - Always start with a smaller number (more negative if negative) and then increase from there. The value for percentile 10 should always be less than the value for percentile 20, and so on.
 
