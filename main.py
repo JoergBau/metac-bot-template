@@ -744,12 +744,14 @@ if __name__ == "__main__":
     parser.add_argument(
         "--mode",
         type=str,
-        choices=["tournament", "metaculus_cup", "test_questions"],
+        choices=["tournament", "minibench", "metaculus_cup", "test_questions"],
         default="tournament",
         help="What to forecast on (default: tournament)",
     )
     args = parser.parse_args()
-    run_mode: Literal["tournament", "metaculus_cup", "test_questions"] = args.mode
+    run_mode: Literal[
+        "tournament", "minibench", "metaculus_cup", "test_questions"
+    ] = args.mode
 
     check_environment(strict=True)
     publish_to_metaculus = True
@@ -812,6 +814,14 @@ if __name__ == "__main__":
             )
         )
         forecast_reports = seasonal_tournament_reports + minibench_reports
+    elif run_mode == "minibench":
+        # MiniBench only: the two-week practice rounds, without the main
+        # seasonal tournament.
+        forecast_reports = asyncio.run(
+            template_bot.forecast_on_tournament(
+                client.CURRENT_MINIBENCH_ID, return_exceptions=True
+            )
+        )
     elif run_mode == "metaculus_cup":
         # The Metaculus Cup may be uninitialized near the start of a season
         # (Jan/May/Sep). MetaculusClient.ACX_2025_TOURNAMENT = 32564 and
