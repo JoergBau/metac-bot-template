@@ -1,6 +1,7 @@
 import argparse
 import asyncio
 import logging
+import os
 from datetime import datetime, timezone
 from typing import Literal
 
@@ -736,7 +737,7 @@ class FallTemplateBot2026(ForecastBot):
 
 if __name__ == "__main__":
     logging.basicConfig(
-        level=logging.INFO,
+        level=os.environ.get("BOT_LOG_LEVEL", "INFO"),
         format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
     )
 

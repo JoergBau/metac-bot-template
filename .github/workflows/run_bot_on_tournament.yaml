@@ -3,7 +3,7 @@ name: Forecast on new MiniBench questions
 on:
   workflow_dispatch:
   schedule:
-    - cron: "7,27,47 * * * *" # every 20 min, offset off the hour. Make sure to skip already-forecasted questions!
+    - cron: "7,27,47 * * * *" # backup restart only; the run below keeps itself going
 
 # Add concurrency group to prevent parallel runs
 concurrency:
@@ -12,9 +12,14 @@ concurrency:
 
 
 # Daily job to run the simple forecast bot
+permissions:
+  contents: read
+  actions: write # lets a run start its successor
+
 jobs:
   forecast_job:
     runs-on: ubuntu-latest # determines the machine that will run the job - keep as is
+    timeout-minutes: 350
     steps: # sets up the steps that will be run in order
       # setup repository with all necessary dependencies - keep as is
       - name: Check out repository
@@ -29,8 +34,15 @@ jobs:
       - name: Install dependencies
         run: uv sync --locked
       - name: Run bot
+        # Questions are open for only 3 hours and GitHub's cron fired every
+        # 4 to 10 hours on this fork. So one run keeps polling every 10
+        # minutes for about 5 hours, then starts its successor below.
         run: |
-          uv run python main.py --mode minibench
+          end=$(( $(date +%s) + 5*3600 + 15*60 ))
+          while [ "$(date +%s)" -lt "$end" ]; do
+            uv run python main.py --mode minibench || echo "::warning::bot run failed, will retry"
+            sleep 600
+          done
         # this reads the environment variables from the github repository.
         # Store under Settings --> Secrets and variables --> Actions
         env:
@@ -42,3 +54,10 @@ jobs:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           ASKNEWS_CLIENT_ID: ${{ secrets.ASKNEWS_CLIENT_ID }}
           ASKNEWS_SECRET: ${{ secrets.ASKNEWS_SECRET }}
+          # Tournament logs are public; keep reasoning out of them while questions are open.
+          BOT_LOG_LEVEL: WARNING
+      - name: Start the next run
+        if: always()
+        run: gh workflow run run_bot_on_tournament.yaml --ref main -R "$GITHUB_REPOSITORY"
+        env:
+          GH_TOKEN: ${{ github.token }}
